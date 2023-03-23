@@ -79,9 +79,9 @@ class _MainState extends State<Main> {
 
   @override
   Widget build(BuildContext context) {
-    ValueListenable<TextureInstance>? textureInfo1 =
+    ValueListenable<TextureInfo>? textureInfo1 =
         texturesInitialized ? textureInterface.textureInfo(textureIDs["first"]!) : null;
-    ValueListenable<TextureInstance>? textureInfo2 =
+    ValueListenable<TextureInfo>? textureInfo2 =
         texturesInitialized ? textureInterface.textureInfo(textureIDs["second"]!) : null;
 
     Widget firstTexture = texturesInitialized ? textureInterface.widget(textureIDs["first"]!) : const Placeholder();

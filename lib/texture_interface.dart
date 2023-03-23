@@ -8,7 +8,7 @@ import 'dart:ffi' as ffi;
 
 class TextureInterface {
   static const MethodChannel _channel = MethodChannel('texture_interface');
-  final Map<int, ValueNotifier<TextureInstance>> _ids = {};
+  final Map<int, ValueNotifier<TextureInfo>> _ids = {};
 
   Set<int> get ids => _ids.keys.toSet();
 
@@ -48,8 +48,8 @@ class TextureInterface {
     int texId = await _registerTexture(id);
     _ids.addAll(
       {
-        id: ValueNotifier<TextureInstance>(
-          TextureInstance(
+        id: ValueNotifier<TextureInfo>(
+          TextureInfo(
             handle: texId,
             width: 0,
             height: 0,
@@ -130,7 +130,7 @@ class TextureInterface {
   }
 
   Widget widget(int id) {
-    return ValueListenableBuilder<TextureInstance>(
+    return ValueListenableBuilder<TextureInfo>(
       valueListenable: _ids[id]!,
       builder: (context, tex, _) {
         if (tex.handle != null) {
@@ -145,15 +145,15 @@ class TextureInterface {
     );
   }
 
-  ValueListenable<TextureInstance>? textureInfo(int id) => _ids[id];
+  ValueListenable<TextureInfo>? textureInfo(int id) => _ids[id];
 }
 
-class TextureInstance {
+class TextureInfo {
   int? handle;
   int width, height;
   ffi.Pointer<ffi.Uint8> _previousBuffer = ffi.nullptr;
 
-  TextureInstance({
+  TextureInfo({
     required this.handle,
     required this.width,
     required this.height,
@@ -164,8 +164,8 @@ class TextureInstance {
 
   Size get size => Size(width.toDouble(), height.toDouble());
 
-  TextureInstance copyWith({int? handle, int? width, int? height, ffi.Pointer<ffi.Uint8>? previousBuffer}) {
-    return TextureInstance(
+  TextureInfo copyWith({int? handle, int? width, int? height, ffi.Pointer<ffi.Uint8>? previousBuffer}) {
+    return TextureInfo(
       handle: handle ?? this.handle,
       width: width ?? this.width,
       height: height ?? this.height,
