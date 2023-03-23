@@ -162,6 +162,8 @@ class TextureInstance {
     _previousBuffer = previousBuffer;
   }
 
+  Size get size => Size(width.toDouble(), height.toDouble());
+
   TextureInstance copyWith({int? handle, int? width, int? height, ffi.Pointer<ffi.Uint8>? previousBuffer}) {
     return TextureInstance(
       handle: handle ?? this.handle,
