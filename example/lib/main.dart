@@ -50,9 +50,10 @@ class _MainState extends State<Main> {
       texturesInitialized = await initTextures();
       setState(() {});
       if (!texturesInitialized) return;
-      timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-        int width = 100;
-        int height = 50;
+
+      timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+        int width = 1000;
+        int height = 500;
         ffi.Pointer<ffi.Uint8> pFirstBuffer = ffi.malloc.call<ffi.Uint8>(width * height * 4);
 
         for (int i = 0; i < width * height; i++) {
