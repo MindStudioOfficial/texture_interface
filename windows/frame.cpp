@@ -20,20 +20,20 @@ void Frame::Update(uint8_t *buffer, int32_t width, int32_t height)
     flutter_pixel_buffer_.buffer = buffer;
     flutter_pixel_buffer_.width = width;
     flutter_pixel_buffer_.height = height;
-    //flutter_pixel_buffer_.release_context = &buffer;
-    /*flutter_pixel_buffer_.release_callback = [](void *user_data)
+    flutter_pixel_buffer_.release_context = buffer;
+    flutter_pixel_buffer_.release_callback = [](void *user_data)
     {
-        uint8_t *old_buffer = reinterpret_cast<uint8_t *>(user_data);
+        uint8_t *old_buffer = (uint8_t*)user_data;
         if (old_buffer != nullptr)
-            free(old_buffer);
-    };*/
+            CoTaskMemFree(old_buffer);
+    };
     texture_registrar_->MarkTextureFrameAvailable(texture_id_);
+    
 }
 
 Frame::~Frame()
 {
     texture_registrar_->UnregisterTexture(texture_id_);
-    free(flutter_pixel_buffer_.release_context);
 }
 
 void Frame::SetReleaseCallback(void(* release_callback)(void* release_context)) {

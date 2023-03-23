@@ -1,6 +1,6 @@
 name: texture_interface
-description: A new flutter plugin project.
-version: 0.0.1
+description: A simple interface to use an RGBA buffer as input of a Texture Widget
+version: 0.0.2
 
 environment:
   sdk: ">=2.16.0-80.1.beta <3.0.0"

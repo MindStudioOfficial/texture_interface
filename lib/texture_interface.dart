@@ -53,7 +53,6 @@ class TextureInterface {
             handle: texId,
             width: 0,
             height: 0,
-            previousBuffer: ffi.nullptr,
           ),
         ),
       },
@@ -110,11 +109,11 @@ class TextureInterface {
       "height": height,
       "buffer": buffer.address,
     });
-    ffi.Pointer<ffi.Uint8> prev = _ids[id]!.value._previousBuffer;
+    /*ffi.Pointer<ffi.Uint8> prev = _ids[id]!.value._previousBuffer;
     Future.delayed(const Duration(milliseconds: 20), () {
-      if (prev != ffi.nullptr) ffi.calloc.free(prev);
+      if (prev != ffi.nullptr) ffi.malloc.free(prev);
     });
-    _ids[id]!.value = _ids[id]!.value.copyWith(previousBuffer: buffer);
+    _ids[id]!.value = _ids[id]!.value.copyWith(previousBuffer: buffer);*/
   }
 
   Future<void> _unregisterTexture(int id) async {
@@ -148,25 +147,20 @@ class TextureInterface {
 class TextureInfo {
   int? handle;
   int width, height;
-  ffi.Pointer<ffi.Uint8> _previousBuffer = ffi.nullptr;
 
   TextureInfo({
     required this.handle,
     required this.width,
     required this.height,
-    required ffi.Pointer<ffi.Uint8> previousBuffer,
-  }) {
-    _previousBuffer = previousBuffer;
-  }
+  });
 
   Size get size => Size(width.toDouble(), height.toDouble());
 
-  TextureInfo copyWith({int? handle, int? width, int? height, ffi.Pointer<ffi.Uint8>? previousBuffer}) {
+  TextureInfo copyWith({int? handle, int? width, int? height}) {
     return TextureInfo(
       handle: handle ?? this.handle,
       width: width ?? this.width,
       height: height ?? this.height,
-      previousBuffer: previousBuffer ?? _previousBuffer,
     );
   }
 }
