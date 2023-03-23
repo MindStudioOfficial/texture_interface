@@ -62,15 +62,12 @@ class TextureInterface {
   }
 
   Future<bool> unregister(int id) async {
-    Completer<bool> c = Completer<bool>();
     if (!_ids.containsKey(id)) {
-      c.complete(false);
+      return false;
     }
-    _unregisterTexture(id).then((_) {
-      c.complete(true);
-    });
+    await _unregisterTexture(id);
     _ids.remove(id);
-    return c.future;
+    return true;
   }
 
   Future<void> dispose() async {
