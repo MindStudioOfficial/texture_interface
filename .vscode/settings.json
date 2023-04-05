@@ -59,6 +59,13 @@
         "xtree": "cpp",
         "xutility": "cpp",
         "mutex": "cpp",
-        "xthread": "cpp"
+        "xthread": "cpp",
+        "codecvt": "cpp",
+        "ctime": "cpp",
+        "locale": "cpp",
+        "xlocbuf": "cpp",
+        "xlocmes": "cpp",
+        "xlocmon": "cpp",
+        "xloctime": "cpp"
     }
 }

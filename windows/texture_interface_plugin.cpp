@@ -10,12 +10,12 @@
 #include <flutter/plugin_registrar_windows.h>
 #include <flutter/standard_method_codec.h>
 
+#include "include/texture_interface/frame.h"
+
 #include <map>
 #include <memory>
 #include <sstream>
 #include <unordered_map>
-
-#include "include/texture_interface/frame.h"
 
 namespace
 {
@@ -27,11 +27,11 @@ namespace
 
     flutter::MethodChannel<flutter::EncodableValue> *channel() const
     {
-      return channel_.get();
+      return m_channel.get();
     }
 
     Texture_interfacePlugin(std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel,
-                        flutter::TextureRegistrar *texture_registrar);
+                            flutter::TextureRegistrar *texture_registrar);
 
     virtual ~Texture_interfacePlugin();
 
@@ -41,9 +41,13 @@ namespace
         const flutter::MethodCall<flutter::EncodableValue> &method_call,
         std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
 
-    flutter::TextureRegistrar *texture_registrar_;
-    std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel_;
-    std::unordered_map<int, std::unique_ptr<Frame>> frames_;
+    flutter::TextureRegistrar *m_texture_registrar;
+    std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> m_channel;
+    std::unordered_map<int, std::unique_ptr<Frame>> m_frames;
+    std::unordered_map<int, std::unique_ptr<GPUFrame>> m_gpu_frames;
+
+    ID3D11Device *m_d3d11_device = nullptr;
+    ID3D11DeviceContext *m_d3d11_device_context = nullptr;
   };
 
   // static
@@ -68,7 +72,7 @@ namespace
   Texture_interfacePlugin::Texture_interfacePlugin(
       std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel,
       flutter::TextureRegistrar *texture_registrar)
-      : channel_(std::move(channel)), texture_registrar_(texture_registrar) {}
+      : m_channel(std::move(channel)), m_texture_registrar(texture_registrar) {}
 
   Texture_interfacePlugin::~Texture_interfacePlugin() {}
 
@@ -101,11 +105,11 @@ namespace
       flutter::EncodableMap arguments =
           std::get<flutter::EncodableMap>(*method_call.arguments());
       auto id = std::get<int>(arguments[flutter::EncodableValue("id")]);
-      auto [it, added] = frames_.try_emplace(id, nullptr);
+      auto [map_entry, added] = m_frames.try_emplace(id, nullptr);
 
       if (added)
       {
-        it->second = std::make_unique<Frame>(texture_registrar_);
+        map_entry->second = std::make_unique<Frame>(m_texture_registrar);
 
         /*
         it->second->SetReleaseCallback(
@@ -117,7 +121,7 @@ namespace
               delete context;
             });*/
       }
-      return result->Success(flutter::EncodableValue(it->second->texture_id()));
+      return result->Success(flutter::EncodableValue(map_entry->second->texture_id()));
     }
     else if (method_call.method_name().compare("UpdateFrame") == 0)
     {
@@ -134,8 +138,8 @@ namespace
 
       uint8_t *bufferptr = reinterpret_cast<uint8_t *>(bufferptra);
 
-      auto frame = frames_.find(id);
-      if (frame == frames_.end())
+      auto frame = m_frames.find(id);
+      if (frame == m_frames.end())
       {
         return result->Error("-2", "Texture was not found.");
       }
@@ -146,7 +150,6 @@ namespace
 
       frame->second->SetReleaseContext(urc);*/
 
-      
       frame->second->Update(bufferptr, width, height);
 
       return result->Success();
@@ -158,13 +161,85 @@ namespace
       auto id =
           std::get<int>(arguments[flutter::EncodableValue("id")]);
 
-      if (frames_.find(id) == frames_.end())
+      if (m_frames.find(id) == m_frames.end())
       {
         return result->Error("-2", "Texture was not found.");
       }
-      // auto player = g_players->Get(player_id);
-      // player->SetVideoFrameCallback(nullptr);
-      frames_.erase(id);
+      m_frames.erase(id);
+      result->Success(flutter::EncodableValue(nullptr));
+    }
+    else if (method_call.method_name().compare("CreateD3D11Device") == 0)
+    {
+      HRESULT hr = D3D11CreateDevice(
+          nullptr,                           // ADAPTER
+          D3D_DRIVER_TYPE_HARDWARE,          // HARDWARE/SOFTWARE
+          nullptr,                           // Software
+          D3D11_CREATE_DEVICE_VIDEO_SUPPORT, // Flags
+          nullptr,                           // pFeatureLevels
+          0,                                 // feeatureLevel
+          D3D11_SDK_VERSION,                 // SDK Version
+          &m_d3d11_device,                   //* out ID3D11Device
+          nullptr,                           // pFeatureLevels
+          &m_d3d11_device_context            //* out ID3D11DeviceContext
+      );
+      if FAILED(hr) {
+        printf("Failed to create D3D11 Device and context.");
+      }
+
+      result->Success(flutter::EncodableValue(nullptr));
+    }
+    else if (method_call.method_name().compare("CreateGPUTexture") == 0)
+    {
+      flutter::EncodableMap arguments =
+          std::get<flutter::EncodableMap>(*method_call.arguments());
+
+      auto id = std::get<int>(arguments[flutter::EncodableValue("id")]);
+      int32_t width = std::get<int32_t>(arguments[flutter::EncodableValue("width")]);
+      int32_t height = std::get<int32_t>(arguments[flutter::EncodableValue("height")]);
+      // create
+      auto [map_entry, added] = m_gpu_frames.try_emplace(id, nullptr);
+      if (!added)
+      {
+        printf("Could not create new map entry with id %d.\n", id);
+        return result->Success(flutter::EncodableValue(-1));
+      }
+      map_entry->second = std::make_unique<GPUFrame>(m_texture_registrar, width, height, m_d3d11_device, m_d3d11_device_context);
+      HANDLE shared_handle = map_entry->second->shared_handle();
+      if (shared_handle == nullptr)
+      {
+        printf("Could not create new GPUFrame instance. shared_handle is nullptr. \n");
+        return result->Success(flutter::EncodableValue(-1));
+      }
+      int64_t i_shared_handle = map_entry->second->shared_handle_asInt();
+      if (i_shared_handle == 0)
+      {
+        printf("Could not create new GPUFrame instance. shared_handle is 0. \n");
+        return result->Success(flutter::EncodableValue(-1));
+      }
+      int64_t texture_id = map_entry->second->texture_id();
+      if (texture_id == -1)
+      {
+        printf("Could not create new GPUFrame instance. Textureid is -1. \n");
+        return result->Success(flutter::EncodableValue(-1));
+      }
+      flutter::EncodableMap res;
+      res[flutter::EncodableValue("shared_handle")] = flutter::EncodableValue(i_shared_handle);
+      res[flutter::EncodableValue("texture_id")] = flutter::EncodableValue(texture_id);
+
+      return result->Success(res);
+    }
+    else if (method_call.method_name().compare("DestroyGPUTexture") == 0)
+    {
+      flutter::EncodableMap arguments =
+          std::get<flutter::EncodableMap>(*method_call.arguments());
+
+      auto id = std::get<int>(arguments[flutter::EncodableValue("id")]);
+
+      if (m_gpu_frames.find(id) == m_gpu_frames.end())
+      {
+        return result->Error("-2", "Texture was not found.");
+      }
+      m_gpu_frames.erase(id);
       result->Success(flutter::EncodableValue(nullptr));
     }
 

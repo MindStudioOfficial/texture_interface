@@ -9,36 +9,22 @@ import 'dart:ffi' as ffi;
 class TextureInterface {
   static const MethodChannel _channel = MethodChannel('texture_interface');
   final Map<int, ValueNotifier<TextureInfo>> _ids = {};
+  final Map<int, ValueNotifier<GPUTextureInfo>> _gpuIDS = {};
 
   Set<int> get ids => _ids.keys.toSet();
+  Set<int> get gpuIDS => _gpuIDS.keys.toSet();
+
+  bool _d3d11Initialized = false;
 
   int getUniqueId() {
     if (_ids.isEmpty) return 0;
     return _ids.keys.reduce((a, b) => a > b ? a : b) + 1;
   }
 
-  /*
-  Texture_interface() {
-    WidgetsFlutterBinding.ensureInitialized();
-
-    _channel.setMethodCallHandler((call) async {
-      // if method is FreeBuffer
-      if (call.method.compareTo("FreeBuffer") == 0) {
-        // if the arguments is a single int
-
-        if (call.arguments is int) {
-          int ptra = call.arguments;
-          ffi.Pointer<ffi.Uint8> buffer = ffi.Pointer.fromAddress(ptra);
-          if (buffer != ffi.nullptr) {
-            ffi.calloc.free(buffer);
-            // frees 10/20GB but there should also just be 10GB to free
-          }
-        }
-      }
-      return true;
-    });
-
-  }*/
+  int getUniqueGPUid() {
+    if (_gpuIDS.isEmpty) return 0;
+    return _gpuIDS.keys.reduce((a, b) => a > b ? a : b) + 1;
+  }
 
   Future<bool> register(int id) async {
     if (_ids.containsKey(id)) {
@@ -61,6 +47,18 @@ class TextureInterface {
     return true;
   }
 
+  Future<bool> registerGPU(int id, int width, int height) async {
+    if (!_d3d11Initialized) {
+      await _channel.invokeMethod("CreateD3D11Device");
+      _d3d11Initialized = true;
+    }
+
+    if (_gpuIDS.containsKey(id)) return false;
+    GPUTextureInfo textureInfo = await _createGPUTexture(id, width, height);
+    _gpuIDS.addAll({id: ValueNotifier<GPUTextureInfo>(textureInfo)});
+    return true;
+  }
+
   Future<bool> unregister(int id) async {
     if (!_ids.containsKey(id)) {
       return false;
@@ -70,9 +68,21 @@ class TextureInterface {
     return true;
   }
 
+  Future<bool> unregisterGPU(int id) async {
+    if (!_gpuIDS.containsKey(id)) return false;
+    await _destroyGPUTexture(id);
+    _gpuIDS.remove(id);
+    return true;
+  }
+
   Future<void> dispose() async {
     for (int id in _ids.keys) {
       await _unregisterTexture(id);
+    }
+    _ids.clear();
+
+    for (int id in _gpuIDS.keys) {
+      _destroyGPUTexture(id);
     }
     _ids.clear();
   }
@@ -95,6 +105,23 @@ class TextureInterface {
       },
     );
     return texId;
+  }
+
+  Future<GPUTextureInfo> _createGPUTexture(int id, int width, int height) async {
+    Map<dynamic, dynamic>? res = await _channel
+        .invokeMethod<Map<dynamic, dynamic>>("CreateGPUTexture", {"id": id, "width": width, "height": height});
+
+    if (res == null || res["texture_id"] == null || res["shared_handle"] == null) {
+      throw Exception("Couldn't create GPUTexture");
+    }
+    int textureID = res["texture_id"] as int;
+    if (textureID == -1) throw Exception("Couldn't create GPUTexture (ID is -1)");
+    int sharedHandle = res["shared_handle"] as int;
+    return GPUTextureInfo(height: height, sharedHandle: sharedHandle, textureID: textureID, width: width);
+  }
+
+  Future<void> _destroyGPUTexture(int id) async {
+    await _channel.invokeMethod<Map<String, int>>("DestroyGPUTexture", {"id": id});
   }
 
   Future<void> update(int id, ffi.Pointer<ffi.Uint8> buffer, int width, int height) async {
@@ -142,7 +169,21 @@ class TextureInterface {
     );
   }
 
+  Widget widgetGPU(int id) {
+    return ValueListenableBuilder<GPUTextureInfo>(
+      valueListenable: _gpuIDS[id]!,
+      builder: (context, tex, _) {
+        return SizedBox(
+          width: tex.width.toDouble(),
+          height: tex.height.toDouble(),
+          child: Texture(textureId: tex.textureID),
+        );
+      },
+    );
+  }
+
   ValueListenable<TextureInfo>? textureInfo(int id) => _ids[id];
+  ValueListenable<GPUTextureInfo>? gpuTextureInfo(int id) => _gpuIDS[id];
 }
 
 class TextureInfo {
@@ -169,4 +210,14 @@ class TextureInfo {
       previousBuffer: previousBuffer ?? _previousBuffer,
     );
   }
+}
+
+class GPUTextureInfo {
+  int sharedHandle;
+  int textureID;
+  int width, height;
+
+  GPUTextureInfo({required this.height, required this.sharedHandle, required this.textureID, required this.width});
+
+  Size get size => Size(width.toDouble(), height.toDouble());
 }
