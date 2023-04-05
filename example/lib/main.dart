@@ -5,6 +5,7 @@ import 'package:ffi/ffi.dart' as ffi;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:texture_interface/texture_interface.dart';
+import 'package:window_manager/window_manager.dart';
 
 // global textureInterface instance
 late TextureInterface textureInterface;
@@ -17,7 +18,7 @@ Map<String, int> textureIDs = {
 
 Future<bool> initTextures() async {
   // initialize the instance
-  textureInterface = TextureInterface();
+  textureInterface = TextureInterface(verboseLogging: false);
   bool success = true;
 
   // register all textures with an id
@@ -28,7 +29,9 @@ Future<bool> initTextures() async {
   return success;
 }
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await windowManager.ensureInitialized();
   runApp(const Main());
 }
 
@@ -39,11 +42,12 @@ class Main extends StatefulWidget {
   State<Main> createState() => _MainState();
 }
 
-class _MainState extends State<Main> {
+class _MainState extends State<Main> with WindowListener {
   bool texturesInitialized = false;
   Timer? timer;
   @override
   void initState() {
+    windowManager.addListener(this);
     super.initState();
 
     WidgetsFlutterBinding.ensureInitialized().addPostFrameCallback((timeStamp) async {
@@ -51,31 +55,39 @@ class _MainState extends State<Main> {
       setState(() {});
       if (!texturesInitialized) return;
 
-      timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
-        int width = 1000;
-        int height = 500;
+      timer = Timer.periodic(const Duration(milliseconds: 1), (timer) async {
+        int width = 1920;
+        int height = 1080;
         ffi.Pointer<ffi.Uint8> pFirstBuffer = ffi.malloc.call<ffi.Uint8>(width * height * 4);
 
         for (int i = 0; i < width * height; i++) {
           int byte = i * 4;
-          pFirstBuffer.elementAt(byte).value = timer.tick;
-          pFirstBuffer.elementAt(byte + 1).value = timer.tick + 50;
-          pFirstBuffer.elementAt(byte + 2).value = timer.tick + 100;
+          pFirstBuffer.elementAt(byte).value = (timer.tick) % 255;
+          pFirstBuffer.elementAt(byte + 1).value = (timer.tick + 50) % 255;
+          pFirstBuffer.elementAt(byte + 2).value = (timer.tick + 100) % 255;
           pFirstBuffer.elementAt(byte + 3).value = 255;
         }
-
-        textureInterface.update(textureIDs["first"]!, pFirstBuffer, width, height);
+        await textureInterface.update(textureIDs["first"]!, pFirstBuffer, width, height);
       });
     });
+    init();
+  }
+
+  Future<void> init() async {
+    await windowManager.setPreventClose(true);
   }
 
   @override
   void dispose() {
+    super.dispose();
+  }
+
+  @override
+  void onWindowClose() async {
     timer?.cancel();
 
-    textureInterface.dispose();
-
-    super.dispose();
+    await textureInterface.dispose();
+    await windowManager.destroy();
   }
 
   @override
