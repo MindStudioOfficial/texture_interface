@@ -67,5 +67,8 @@
         "xlocmes": "cpp",
         "xlocmon": "cpp",
         "xloctime": "cpp"
-    }
+    },
+    "cSpell.words": [
+        "dxgi"
+    ]
 }

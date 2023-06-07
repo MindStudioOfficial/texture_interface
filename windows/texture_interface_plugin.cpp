@@ -182,7 +182,8 @@ namespace
           nullptr,                           // pFeatureLevels
           &m_d3d11_device_context            //* out ID3D11DeviceContext
       );
-      if FAILED(hr) {
+      if FAILED (hr)
+      {
         printf("Failed to create D3D11 Device and context.");
       }
 
@@ -201,6 +202,7 @@ namespace
       if (!added)
       {
         printf("Could not create new map entry with id %d.\n", id);
+        fflush(stdout);
         return result->Success(flutter::EncodableValue(-1));
       }
       map_entry->second = std::make_unique<GPUFrame>(m_texture_registrar, width, height, m_d3d11_device, m_d3d11_device_context);
@@ -208,18 +210,21 @@ namespace
       if (shared_handle == nullptr)
       {
         printf("Could not create new GPUFrame instance. shared_handle is nullptr. \n");
+        fflush(stdout);
         return result->Success(flutter::EncodableValue(-1));
       }
       int64_t i_shared_handle = map_entry->second->shared_handle_asInt();
       if (i_shared_handle == 0)
       {
         printf("Could not create new GPUFrame instance. shared_handle is 0. \n");
+        fflush(stdout);
         return result->Success(flutter::EncodableValue(-1));
       }
       int64_t texture_id = map_entry->second->texture_id();
       if (texture_id == -1)
       {
         printf("Could not create new GPUFrame instance. Textureid is -1. \n");
+        fflush(stdout);
         return result->Success(flutter::EncodableValue(-1));
       }
       flutter::EncodableMap res;

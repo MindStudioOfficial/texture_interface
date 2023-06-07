@@ -78,7 +78,7 @@ class _MainState extends State<Main> {
           children: [
             if (textureInfo1 != null)
               Expanded(
-                child: ValueListenableBuilder(
+                child: ValueListenableBuilder<GPUTextureInfo>(
                   valueListenable: textureInfo1,
                   builder: (context, info, _) {
                     return Column(
@@ -101,7 +101,7 @@ class _MainState extends State<Main> {
               ),
             if (textureInfo2 != null)
               Expanded(
-                child: ValueListenableBuilder(
+                child: ValueListenableBuilder<GPUTextureInfo>(
                   valueListenable: textureInfo2,
                   builder: (context, info, _) {
                     return Column(

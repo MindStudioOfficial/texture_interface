@@ -108,8 +108,17 @@ class TextureInterface {
   }
 
   Future<GPUTextureInfo> _createGPUTexture(int id, int width, int height) async {
-    Map<dynamic, dynamic>? res = await _channel
-        .invokeMethod<Map<dynamic, dynamic>>("CreateGPUTexture", {"id": id, "width": width, "height": height});
+    dynamic res = await _channel.invokeMethod(
+      "CreateGPUTexture",
+      <dynamic, int>{
+        "id": id,
+        "width": width,
+        "height": height,
+      },
+    );
+    if (res is int) {
+      throw Exception("Couldn't create GPUTexture $res");
+    }
 
     if (res == null || res["texture_id"] == null || res["shared_handle"] == null) {
       throw Exception("Couldn't create GPUTexture");
