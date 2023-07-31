@@ -17,29 +17,6 @@ class TextureInterface {
     return _ids.keys.reduce((a, b) => a > b ? a : b) + 1;
   }
 
-  /*
-  Texture_interface() {
-    WidgetsFlutterBinding.ensureInitialized();
-
-    _channel.setMethodCallHandler((call) async {
-      // if method is FreeBuffer
-      if (call.method.compareTo("FreeBuffer") == 0) {
-        // if the arguments is a single int
-
-        if (call.arguments is int) {
-          int ptra = call.arguments;
-          ffi.Pointer<ffi.Uint8> buffer = ffi.Pointer.fromAddress(ptra);
-          if (buffer != ffi.nullptr) {
-            ffi.calloc.free(buffer);
-            // frees 10/20GB but there should also just be 10GB to free
-          }
-        }
-      }
-      return true;
-    });
-
-  }*/
-
   Future<bool> register(int id) async {
     if (_ids.containsKey(id)) {
       return false;
@@ -126,7 +103,7 @@ class TextureInterface {
     );
   }
 
-  Widget widget(int id) {
+  Widget widget(int id, {FilterQuality filterQuality = FilterQuality.low}) {
     return ValueListenableBuilder<TextureInfo>(
       valueListenable: _ids[id]!,
       builder: (context, tex, _) {
@@ -134,7 +111,10 @@ class TextureInterface {
           return SizedBox(
             width: tex.width.toDouble(),
             height: tex.height.toDouble(),
-            child: Texture(textureId: tex.handle!),
+            child: Texture(
+              textureId: tex.handle!,
+              filterQuality: filterQuality,
+            ),
           );
         }
         return Container();
