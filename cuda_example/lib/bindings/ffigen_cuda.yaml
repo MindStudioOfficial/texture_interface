@@ -1,0 +1,6 @@
+output: "ffi_bindings_cuda_test.dart"
+headers:
+  entry-points:
+    - "../../bin/cuda_render/CudaDirectXInterop/exports.h"
+name: "CudaTest"
+description: "CudaTest FFI bindings"

@@ -29,3 +29,7 @@
 build/
 
 windows/lib/
+
+cuda_example/bin/CudaDirectXInterop.pdb
+cuda_example/bin/CudaDirectXInterop.exp
+cuda_example/bin/CudaDirectXInterop.lib

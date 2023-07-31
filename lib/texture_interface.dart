@@ -14,6 +14,24 @@ class TextureInterface {
   Set<int> get ids => _ids.keys.toSet();
   Set<int> get gpuIDS => _gpuIDS.keys.toSet();
 
+  ffi.Pointer _d3d11Device = ffi.nullptr;
+
+  ffi.Pointer get d3d11Device => _d3d11Device;
+
+  /// Initialized the D3D11Device in [_d3d11Device]
+  Future<bool> initialize() async {
+    if (_d3d11Initialized) return true;
+
+    int? d3d11DeviceA = await _channel.invokeMethod<int>("CreateD3D11Device");
+    print("d3d11Device: $d3d11DeviceA");
+
+    if (d3d11DeviceA == null) return false;
+    _d3d11Device = ffi.Pointer.fromAddress(d3d11DeviceA);
+
+    _d3d11Initialized = true;
+    return true;
+  }
+
   bool _d3d11Initialized = false;
 
   int getUniqueId() {
@@ -49,10 +67,9 @@ class TextureInterface {
 
   Future<bool> registerGPU(int id, int width, int height) async {
     if (!_d3d11Initialized) {
-      await _channel.invokeMethod("CreateD3D11Device");
-      _d3d11Initialized = true;
+      print("D3D11Device has not been initialized.");
+      return false;
     }
-
     if (_gpuIDS.containsKey(id)) return false;
     GPUTextureInfo textureInfo = await _createGPUTexture(id, width, height);
     _gpuIDS.addAll({id: ValueNotifier<GPUTextureInfo>(textureInfo)});

@@ -26,43 +26,42 @@
 
 using namespace Microsoft::WRL;
 
-class Frame
-{
+class Frame {
 public:
-    Frame(flutter::TextureRegistrar *texture_registrar);
+    Frame(flutter::TextureRegistrar* texture_registrar);
 
     int64_t texture_id() const { return m_texture_id; }
 
-    void Update(uint8_t *buffer, int32_t width, int32_t height);
+    void Update(uint8_t* buffer, int32_t width, int32_t height);
 
     ~Frame();
 
-    void SetReleaseCallback(void (*release_callback)(void *release_context));
-    void SetReleaseContext(void *release_context);
+    void SetReleaseCallback(void (*release_callback)(void* release_context));
+    void SetReleaseContext(void* release_context);
 
 private:
     FlutterDesktopPixelBuffer m_flutter_pixel_buffer{};
-    flutter::TextureRegistrar *m_texture_registrar = nullptr;
+    flutter::TextureRegistrar* m_texture_registrar = nullptr;
     std::unique_ptr<flutter::TextureVariant> m_texture = nullptr;
     int64_t m_texture_id;
     mutable std::mutex m_mutex;
 };
 
-class GPUFrame
-{
+class GPUFrame {
 public:
     GPUFrame(
-        flutter::TextureRegistrar *texture_registrar,
+        flutter::TextureRegistrar* texture_registrar,
         size_t initialWidth,
         size_t initialHeight,
-        ID3D11Device *d3d11_device,
-        ID3D11DeviceContext *d3d11_device_context);
+        ID3D11Device* d3d11_device,
+        ID3D11DeviceContext* d3d11_device_context);
     int64_t texture_id() const { return m_texture_id; }
     HANDLE shared_handle() const { return m_shared_handle; }
-    int64_t shared_handle_asInt()
-    {
+    int64_t shared_handle_asInt() {
         return reinterpret_cast<int64_t>(m_shared_handle);
     }
+
+    ID3D11Texture2D* d3d11_texture() { return m_d3d11_texture_2D.Get(); }
 
     ~GPUFrame();
 
@@ -71,7 +70,7 @@ private:
     int64_t m_texture_id = -1;
     mutable std::mutex m_mutex;
 
-    flutter::TextureRegistrar *m_texture_registrar = nullptr;
+    flutter::TextureRegistrar* m_texture_registrar = nullptr;
     std::unique_ptr<flutter::TextureVariant> m_texture = nullptr;
     HANDLE m_shared_handle = nullptr;
     ComPtr<ID3D11Texture2D> m_d3d11_texture_2D;
@@ -109,32 +108,32 @@ private:
       EGL_PLATFORM_ANGLE_ENABLE_AUTOMATIC_TRIM_ANGLE,
       EGL_TRUE,
       EGL_NONE,
-  };
-  static constexpr EGLint kD3D11_9_3DisplayAttributes[] = {
-      EGL_PLATFORM_ANGLE_TYPE_ANGLE,
-      EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE,
-      EGL_PLATFORM_ANGLE_MAX_VERSION_MAJOR_ANGLE,
-      9,
-      EGL_PLATFORM_ANGLE_MAX_VERSION_MINOR_ANGLE,
-      3,
-      EGL_PLATFORM_ANGLE_ENABLE_AUTOMATIC_TRIM_ANGLE,
-      EGL_TRUE,
-      EGL_NONE,
-  };
-  static constexpr EGLint kD3D9DisplayAttributes[] = {
-      EGL_PLATFORM_ANGLE_TYPE_ANGLE,
-      EGL_PLATFORM_ANGLE_TYPE_D3D9_ANGLE,
-      EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
-      EGL_PLATFORM_ANGLE_DEVICE_TYPE_HARDWARE_ANGLE,
-      EGL_NONE,
-  };
-  static constexpr EGLint kWrapDisplayAttributes[] = {
-      EGL_PLATFORM_ANGLE_TYPE_ANGLE,
-      EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE,
-      EGL_PLATFORM_ANGLE_ENABLE_AUTOMATIC_TRIM_ANGLE,
-      EGL_TRUE,
-      EGL_NONE,
-  };
+    };
+    static constexpr EGLint kD3D11_9_3DisplayAttributes[] = {
+        EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+        EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE,
+        EGL_PLATFORM_ANGLE_MAX_VERSION_MAJOR_ANGLE,
+        9,
+        EGL_PLATFORM_ANGLE_MAX_VERSION_MINOR_ANGLE,
+        3,
+        EGL_PLATFORM_ANGLE_ENABLE_AUTOMATIC_TRIM_ANGLE,
+        EGL_TRUE,
+        EGL_NONE,
+    };
+    static constexpr EGLint kD3D9DisplayAttributes[] = {
+        EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+        EGL_PLATFORM_ANGLE_TYPE_D3D9_ANGLE,
+        EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
+        EGL_PLATFORM_ANGLE_DEVICE_TYPE_HARDWARE_ANGLE,
+        EGL_NONE,
+    };
+    static constexpr EGLint kWrapDisplayAttributes[] = {
+        EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+        EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE,
+        EGL_PLATFORM_ANGLE_ENABLE_AUTOMATIC_TRIM_ANGLE,
+        EGL_TRUE,
+        EGL_NONE,
+    };
 };
 const char* eglGetErrorString(EGLint error);
 void checkEglError(int line);

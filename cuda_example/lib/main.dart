@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'dart:ffi';
 
+import 'package:cuda_example/bindings/ffi_bindings_cuda_test.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:texture_interface/texture_interface.dart';
+
+CudaTest cuda = CudaTest(DynamicLibrary.open("bin/CudaDirectXInterop.dll"));
 
 // global textureInterface instance
 late TextureInterface textureInterface;
@@ -16,7 +20,11 @@ Map<String, int> textureIDs = {
 Future<bool> initTextures() async {
   // initialize the instance
   textureInterface = TextureInterface();
-  bool success = true;
+
+  bool success = await textureInterface.initialize();
+  if (!success) return false;
+
+  cuda.setD3D11DeviceForCuda(textureInterface.d3d11Device.cast());
 
   // register all textures with an id
   for (MapEntry<String, int> textureID in textureIDs.entries) {
@@ -93,7 +101,8 @@ class _MainState extends State<Main> {
                               )
                             : const Expanded(child: Placeholder()),
                         Text(
-                            "Internal Handle: ${info.textureID} Shared Handle: ${info.sharedHandle} Size: ${info.width} x ${info.height}")
+                          "Internal Handle: ${info.textureID} Shared Handle: ${info.sharedHandle} Size: ${info.width} x ${info.height}",
+                        )
                       ],
                     );
                   },
@@ -116,7 +125,8 @@ class _MainState extends State<Main> {
                               )
                             : const Expanded(child: Placeholder()),
                         Text(
-                            "Internal Handle: ${info.textureID} Shared Handle: ${info.sharedHandle} Size: ${info.width} x ${info.height}")
+                          "Internal Handle: ${info.textureID} Shared Handle: ${info.sharedHandle} Size: ${info.width} x ${info.height}",
+                        )
                       ],
                     );
                   },

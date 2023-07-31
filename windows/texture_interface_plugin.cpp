@@ -187,7 +187,7 @@ namespace
         printf("Failed to create D3D11 Device and context.");
       }
 
-      result->Success(flutter::EncodableValue(nullptr));
+      result->Success(flutter::EncodableValue(reinterpret_cast<int64_t>(m_d3d11_device)));
     }
     else if (method_call.method_name().compare("CreateGPUTexture") == 0)
     {

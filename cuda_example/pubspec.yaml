@@ -33,6 +33,7 @@ dependencies:
   ffi: ^2.0.1
   texture_interface:
     path: ../
+  ffigen: ^8.0.2
 
 dev_dependencies:
   flutter_test:
