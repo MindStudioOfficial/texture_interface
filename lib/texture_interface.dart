@@ -60,25 +60,32 @@ class TextureInterface {
   }
 
   Size? texSize(int id) {
-    if (_ids[id] != null) return Size(_ids[id]!.value.width.toDouble(), _ids[id]!.value.height.toDouble());
+    final info = _ids[id];
+    if (info != null) {
+      return Size(
+        info.value.width.toDouble(),
+        info.value.height.toDouble(),
+      );
+    }
     return null;
   }
 
   Future<int> _registerTexture(int id) async {
-    int texId = await _channel.invokeMethod(
-      "RegisterTexture",
-      {
-        "id": id,
-      },
-    );
+    int texId = await _channel.invokeMethod("RegisterTexture", {"id": id});
     return texId;
   }
 
-  Future<void> update(int id, ffi.Pointer<ffi.Uint8> buffer, int width, int height) async {
+  Future<void> update(
+    int id,
+    ffi.Pointer<ffi.Uint8> buffer,
+    int width,
+    int height,
+  ) async {
     if (!_ids.containsKey(id)) {
-      ffi.calloc.free(buffer);
+      ffi.malloc.free(buffer);
       return;
     }
+
     _ids[id]!.value = _ids[id]!.value.copyWith(width: width, height: height);
 
     await _channel.invokeMethod('UpdateFrame', {
@@ -87,20 +94,21 @@ class TextureInterface {
       "height": height,
       "buffer": buffer.address,
     });
+
     ffi.Pointer<ffi.Uint8> prev = _ids[id]!.value._previousBuffer;
-    Future.delayed(const Duration(milliseconds: 20), () {
-      if (prev != ffi.nullptr) ffi.calloc.free(prev);
-    });
+
+    Future.delayed(
+      const Duration(milliseconds: 20),
+      () {
+        if (prev != ffi.nullptr) ffi.malloc.free(prev);
+      },
+    );
+
     _ids[id]!.value = _ids[id]!.value.copyWith(previousBuffer: buffer);
   }
 
   Future<void> _unregisterTexture(int id) async {
-    await _channel.invokeMethod(
-      "UnregisterTexture",
-      {
-        "id": id,
-      },
-    );
+    await _channel.invokeMethod("UnregisterTexture", {"id": id});
   }
 
   Widget widget(int id, {FilterQuality filterQuality = FilterQuality.low}) {
@@ -141,7 +149,11 @@ class TextureInfo {
 
   Size get size => Size(width.toDouble(), height.toDouble());
 
-  TextureInfo copyWith({int? handle, int? width, int? height, ffi.Pointer<ffi.Uint8>? previousBuffer}) {
+  TextureInfo copyWith(
+      {int? handle,
+      int? width,
+      int? height,
+      ffi.Pointer<ffi.Uint8>? previousBuffer}) {
     return TextureInfo(
       handle: handle ?? this.handle,
       width: width ?? this.width,

@@ -46,26 +46,39 @@ class _MainState extends State<Main> {
   void initState() {
     super.initState();
 
-    WidgetsFlutterBinding.ensureInitialized().addPostFrameCallback((timeStamp) async {
-      texturesInitialized = await initTextures();
-      setState(() {});
-      if (!texturesInitialized) return;
-      timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-        int width = 100;
-        int height = 50;
-        ffi.Pointer<ffi.Uint8> pFirstBuffer = ffi.malloc.call<ffi.Uint8>(width * height * 4);
+    WidgetsFlutterBinding.ensureInitialized().addPostFrameCallback(
+      (timeStamp) async {
+        texturesInitialized = await initTextures();
+        setState(() {});
+        if (!texturesInitialized) return;
+        timer = Timer.periodic(
+          const Duration(milliseconds: 100),
+          (timer) {
+            final sw = Stopwatch()..start();
+            int width = 100;
+            int height = 50;
+            ffi.Pointer<ffi.Uint8> pFirstBuffer =
+                ffi.malloc.call<ffi.Uint8>(width * height * 4);
 
-        for (int i = 0; i < width * height; i++) {
-          int byte = i * 4;
-          pFirstBuffer.elementAt(byte).value = timer.tick;
-          pFirstBuffer.elementAt(byte + 1).value = timer.tick + 50;
-          pFirstBuffer.elementAt(byte + 2).value = timer.tick + 100;
-          pFirstBuffer.elementAt(byte + 3).value = 255;
-        }
+            for (int i = 0; i < width * height; i++) {
+              int byte = i * 4;
+              pFirstBuffer[byte] = timer.tick;
+              pFirstBuffer[byte + 1] = timer.tick + 50;
+              pFirstBuffer[byte + 2] = timer.tick + 100;
+              pFirstBuffer[byte + 3] = 255;
+            }
 
-        textureInterface.update(textureIDs["first"]!, pFirstBuffer, width, height);
-      });
-    });
+            debugPrint("fill took: ${sw.elapsedMicroseconds}us");
+
+            textureInterface
+                .update(textureIDs["first"]!, pFirstBuffer, width, height)
+                .then((_) {
+              debugPrint("Update took: ${sw.elapsedMicroseconds}us");
+            });
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -79,13 +92,19 @@ class _MainState extends State<Main> {
 
   @override
   Widget build(BuildContext context) {
-    ValueListenable<TextureInfo>? textureInfo1 =
-        texturesInitialized ? textureInterface.textureInfo(textureIDs["first"]!) : null;
-    ValueListenable<TextureInfo>? textureInfo2 =
-        texturesInitialized ? textureInterface.textureInfo(textureIDs["second"]!) : null;
+    ValueListenable<TextureInfo>? textureInfo1 = texturesInitialized
+        ? textureInterface.textureInfo(textureIDs["first"]!)
+        : null;
+    ValueListenable<TextureInfo>? textureInfo2 = texturesInitialized
+        ? textureInterface.textureInfo(textureIDs["second"]!)
+        : null;
 
-    Widget firstTexture = texturesInitialized ? textureInterface.widget(textureIDs["first"]!) : const Placeholder();
-    Widget secondTexture = texturesInitialized ? textureInterface.widget(textureIDs["second"]!) : const Placeholder();
+    Widget firstTexture = texturesInitialized
+        ? textureInterface.widget(textureIDs["first"]!)
+        : const Placeholder();
+    Widget secondTexture = texturesInitialized
+        ? textureInterface.widget(textureIDs["second"]!)
+        : const Placeholder();
 
     return MaterialApp(
       home: Scaffold(
@@ -108,7 +127,9 @@ class _MainState extends State<Main> {
                                 ),
                               )
                             : const Expanded(child: Placeholder()),
-                        Text("Internal Handle: ${info.handle} Size: ${info.width} x ${info.height}")
+                        Text(
+                          "Internal Handle: ${info.handle} Size: ${info.width} x ${info.height}",
+                        )
                       ],
                     );
                   },
@@ -130,7 +151,9 @@ class _MainState extends State<Main> {
                                 ),
                               )
                             : const Expanded(child: Placeholder()),
-                        Text("Internal Handle: ${info.handle} Size: ${info.width} x ${info.height}")
+                        Text(
+                          "Internal Handle: ${info.handle} Size: ${info.width} x ${info.height}",
+                        )
                       ],
                     );
                   },
