@@ -19,127 +19,142 @@
 
 namespace {
 
-  class Texture_interfacePlugin : public flutter::Plugin {
-  public:
+class Texture_interfacePlugin : public flutter::Plugin {
+public:
+    Texture_interfacePlugin(
+        std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel,
+        flutter::TextureRegistrar*                                       texture_registrar)
+        : m_channel(std::move(channel))
+        , m_textureRegistrar(texture_registrar) {};
+
     static void RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar);
 
-    flutter::MethodChannel<flutter::EncodableValue>* channel() const {
-      return channel_.get();
+    [[nodiscard]]
+    auto GetChannel() const -> flutter::MethodChannel<flutter::EncodableValue>* {
+        return m_channel.get();
     }
-
-    Texture_interfacePlugin(std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel,
-      flutter::TextureRegistrar* texture_registrar);
 
     virtual ~Texture_interfacePlugin();
 
-  private:
+private:
     // Called when a method is called on this plugin's channel from Dart.
     void HandleMethodCall(
-      const flutter::MethodCall<flutter::EncodableValue>& method_call,
-      std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
+        const flutter::MethodCall<flutter::EncodableValue>&             method_call,
+        std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
 
-    flutter::TextureRegistrar* texture_registrar_;
-    std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel_;
-    std::unordered_map<int, std::unique_ptr<Frame>> frames_;
-  };
+    flutter::TextureRegistrar*                                       m_textureRegistrar;
+    std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> m_channel;
+    std::unordered_map<int, std::unique_ptr<Frame>>                  m_frames;
+};
 
-  // static
-  void Texture_interfacePlugin::RegisterWithRegistrar(
-    flutter::PluginRegistrarWindows* registrar) {
+// static
+void Texture_interfacePlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar) {
+
     auto plugin = std::make_unique<Texture_interfacePlugin>(
-      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
-        registrar->messenger(), "texture_interface",
-        &flutter::StandardMethodCodec::GetInstance()),
-      registrar->texture_registrar());
+        std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+            registrar->messenger(),
+            "texture_interface",
+            &flutter::StandardMethodCodec::GetInstance()),
+        registrar->texture_registrar());
 
-    plugin->channel()->SetMethodCallHandler(
-      [plugin_pointer = plugin.get()](const auto& call, auto result)
-      {
-        plugin_pointer->HandleMethodCall(call, std::move(result));
-      });
+    plugin->GetChannel()->SetMethodCallHandler(
+        [plugin_pointer = plugin.get()](const auto& call, auto result) {
+            plugin_pointer->HandleMethodCall(call, std::move(result));
+        });
 
     registrar->AddPlugin(std::move(plugin));
-  }
+}
 
-  Texture_interfacePlugin::Texture_interfacePlugin(
-    std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel,
-    flutter::TextureRegistrar* texture_registrar)
-    : channel_(std::move(channel)), texture_registrar_(texture_registrar) {}
+Texture_interfacePlugin::~Texture_interfacePlugin() {}
 
-  Texture_interfacePlugin::~Texture_interfacePlugin() {}
-
-  void Texture_interfacePlugin::HandleMethodCall(
-    const flutter::MethodCall<flutter::EncodableValue>& method_call,
+void Texture_interfacePlugin::HandleMethodCall(
+    const flutter::MethodCall<flutter::EncodableValue>&             method_call,
     std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
 
     if (method_call.method_name().compare("getPlatformVersion") == 0) {
-      std::ostringstream version_stream;
-      version_stream << "Windows ";
-      if (IsWindows10OrGreater()) {
-        version_stream << "10+";
-      } else if (IsWindows8OrGreater()) {
-        version_stream << "8";
-      } else if (IsWindows7OrGreater()) {
-        version_stream << "7";
-      }
-      result->Success(flutter::EncodableValue(version_stream.str()));
-    }
+        std::ostringstream version_stream;
+        version_stream << "Windows ";
+        if (IsWindows10OrGreater()) {
+            version_stream << "10+";
+        } else if (IsWindows8OrGreater()) {
+            version_stream << "8";
+        } else if (IsWindows7OrGreater()) {
+            version_stream << "7";
+        }
+        result->Success(flutter::EncodableValue(version_stream.str()));
+    } else if (method_call.method_name().compare("RegisterTexture") == 0) {
+        auto arguments = std::get<flutter::EncodableMap>(*method_call.arguments());
 
-    else if (method_call.method_name().compare("RegisterTexture") == 0) {
+        const auto id    = std::get<int>(arguments[flutter::EncodableValue("id")]);
+        auto [it, added] = m_frames.try_emplace(id, nullptr);
 
-      flutter::EncodableMap arguments =
-        std::get<flutter::EncodableMap>(*method_call.arguments());
+        if (added) {
+            it->second = std::make_unique<Frame>(m_textureRegistrar);
+        }
 
-      auto id = std::get<int>(arguments[flutter::EncodableValue("id")]);
-      auto [it, added] = frames_.try_emplace(id, nullptr);
+        return result->Success(flutter::EncodableValue(it->second->texture_id()));
+    } else if (method_call.method_name().compare("GetBuffer") == 0) {
+        auto arguments = std::get<flutter::EncodableMap>(*method_call.arguments());
 
-      if (added) {
-        it->second = std::make_unique<Frame>(texture_registrar_);
-      }
+        const auto id = std::get<int>(arguments[flutter::EncodableValue("id")]);
 
-      return result->Success(flutter::EncodableValue(it->second->texture_id()));
+        const auto width  = std::get<int32_t>(arguments[flutter::EncodableValue("width")]);
+        const auto height = std::get<int32_t>(arguments[flutter::EncodableValue("height")]);
+
+        auto frame = m_frames.find(id);
+
+        if (frame == m_frames.end()) {
+            return result->Error("-2", "Texture was not found.");
+        }
+
+        uint8_t* bufferptr = frame->second->GetBuffer(width, height);
+
+        if (bufferptr == nullptr) {
+            return result->Error("-3", "Failed to get buffer.");
+        }
+
+        return result->Success(flutter::EncodableValue(reinterpret_cast<int64_t>(bufferptr)));
     } else if (method_call.method_name().compare("UpdateFrame") == 0) {
-      flutter::EncodableMap arguments =
-        std::get<flutter::EncodableMap>(*method_call.arguments());
+        auto arguments = std::get<flutter::EncodableMap>(*method_call.arguments());
 
-      auto id = std::get<int>(arguments[flutter::EncodableValue("id")]);
+        const auto id = std::get<int>(arguments[flutter::EncodableValue("id")]);
 
-      int32_t width = std::get<int32_t>(arguments[flutter::EncodableValue("width")]);
-      int32_t height = std::get<int32_t>(arguments[flutter::EncodableValue("height")]);
+        const auto width  = std::get<int32_t>(arguments[flutter::EncodableValue("width")]);
+        const auto height = std::get<int32_t>(arguments[flutter::EncodableValue("height")]);
 
-      int64_t buffer_ptr_address = std::get<int64_t>(arguments[flutter::EncodableValue("buffer")]);
+        const int64_t buffer_ptr_address = std::get<int64_t>(arguments[flutter::EncodableValue("buffer")]);
 
-      uint8_t* bufferptr = reinterpret_cast<uint8_t*>(buffer_ptr_address);
+        uint8_t* bufferptr = reinterpret_cast<uint8_t*>(buffer_ptr_address);
 
-      auto frame = frames_.find(id);
-      if (frame == frames_.end()) {
-        return result->Error("-2", "Texture was not found.");
-      }
+        auto frame = m_frames.find(id);
 
-      frame->second->Update(bufferptr, width, height);
+        if (frame == m_frames.end()) {
+            return result->Error("-2", "Texture was not found.");
+        }
 
-      return result->Success();
+        const auto success = frame->second->Update(bufferptr, width, height);
+
+        return result->Success(success);
     } else if (method_call.method_name().compare("UnregisterTexture") == 0) {
-      flutter::EncodableMap arguments =
-        std::get<flutter::EncodableMap>(*method_call.arguments());
-      auto id =
-        std::get<int>(arguments[flutter::EncodableValue("id")]);
+        auto arguments = std::get<flutter::EncodableMap>(*method_call.arguments());
+        auto id        = std::get<int>(arguments[flutter::EncodableValue("id")]);
 
-      if (frames_.find(id) == frames_.end()) {
-        return result->Error("-2", "Texture was not found.");
-      }
-      frames_.erase(id);
-      result->Success(flutter::EncodableValue(nullptr));
+        if (m_frames.find(id) == m_frames.end()) {
+            return result->Error("-2", "Texture was not found.");
+        }
+
+        m_frames.erase(id);
+        result->Success(flutter::EncodableValue(nullptr));
     }
 
     else {
-      result->NotImplemented();
+        result->NotImplemented();
     }
-  }
+}
 } // namespace
 
 void Texture_interfacePluginRegisterWithRegistrar(FlutterDesktopPluginRegistrarRef registrar) {
-  Texture_interfacePlugin::RegisterWithRegistrar(
-    flutter::PluginRegistrarManager::GetInstance()
-    ->GetRegistrar<flutter::PluginRegistrarWindows>(registrar));
+    Texture_interfacePlugin::RegisterWithRegistrar(
+        flutter::PluginRegistrarManager::GetInstance()
+            ->GetRegistrar<flutter::PluginRegistrarWindows>(registrar));
 }

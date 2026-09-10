@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:ffi' as ffi;
-import 'package:ffi/ffi.dart' as ffi;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -10,10 +9,7 @@ import 'package:texture_interface/texture_interface.dart';
 late TextureInterface textureInterface;
 
 // hold on to your textureIDs somewhere
-Map<String, int> textureIDs = {
-  "first": 1,
-  "second": 2,
-};
+Map<String, int> textureIDs = {"first": 1, "second": 2};
 
 Future<bool> initTextures() async {
   // initialize the instance
@@ -28,9 +24,7 @@ Future<bool> initTextures() async {
   return success;
 }
 
-void main() {
-  runApp(const Main());
-}
+void main() => runApp(const Main());
 
 class Main extends StatefulWidget {
   const Main({super.key});
@@ -46,39 +40,38 @@ class _MainState extends State<Main> {
   void initState() {
     super.initState();
 
-    WidgetsFlutterBinding.ensureInitialized().addPostFrameCallback(
-      (timeStamp) async {
-        texturesInitialized = await initTextures();
-        setState(() {});
-        if (!texturesInitialized) return;
-        timer = Timer.periodic(
-          const Duration(milliseconds: 100),
-          (timer) {
-            final sw = Stopwatch()..start();
-            int width = 100;
-            int height = 50;
-            ffi.Pointer<ffi.Uint8> pFirstBuffer =
-                ffi.malloc.call<ffi.Uint8>(width * height * 4);
+    WidgetsFlutterBinding.ensureInitialized().addPostFrameCallback((_) async {
+      texturesInitialized = await initTextures();
+      setState(() {});
 
-            for (int i = 0; i < width * height; i++) {
-              int byte = i * 4;
-              pFirstBuffer[byte] = timer.tick;
-              pFirstBuffer[byte + 1] = timer.tick + 50;
-              pFirstBuffer[byte + 2] = timer.tick + 100;
-              pFirstBuffer[byte + 3] = 255;
-            }
+      if (!texturesInitialized) return;
 
-            debugPrint("fill took: ${sw.elapsedMicroseconds}us");
+      timer = Timer.periodic(const Duration(milliseconds: 33), (timer) async {
+        final width = timer.tick.isEven ? 1920 : 1280;
+        final height = timer.tick.isEven ? 1080 : 720;
+        final value = timer.tick.isEven ? 0xFF000000 : 0xFF151515;
 
-            textureInterface
-                .update(textureIDs["first"]!, pFirstBuffer, width, height)
-                .then((_) {
-              debugPrint("Update took: ${sw.elapsedMicroseconds}us");
-            });
-          },
-        );
-      },
-    );
+        final sw = Stopwatch()..start();
+        final pFirstBuffer = await textureInterface.getBuffer(textureIDs["first"]!, width, height);
+        debugPrint("getBuffer took: ${sw.elapsedMicroseconds} us");
+        sw.reset();
+
+        if (pFirstBuffer == null) {
+          debugPrint("Failed to get buffer for first texture");
+          return;
+        }
+
+        pFirstBuffer
+            .cast<ffi.Uint32>()
+            .asTypedList(width * height)
+            .fillRange(0, width * height, value);
+        debugPrint("fillRange took: ${sw.elapsedMicroseconds} us");
+        sw.reset();
+
+        await textureInterface.update(textureIDs["first"]!, pFirstBuffer, width, height);
+        debugPrint("update took: ${sw.elapsedMicroseconds} us");
+      });
+    });
   }
 
   @override
@@ -121,15 +114,12 @@ class _MainState extends State<Main> {
                       children: [
                         info.width > 0 && info.height > 0
                             ? Expanded(
-                                child: FittedBox(
-                                  fit: BoxFit.contain,
-                                  child: firstTexture,
-                                ),
+                                child: FittedBox(fit: BoxFit.contain, child: firstTexture),
                               )
                             : const Expanded(child: Placeholder()),
                         Text(
                           "Internal Handle: ${info.handle} Size: ${info.width} x ${info.height}",
-                        )
+                        ),
                       ],
                     );
                   },
@@ -145,15 +135,12 @@ class _MainState extends State<Main> {
                       children: [
                         info.width > 0 && info.height > 0
                             ? Expanded(
-                                child: FittedBox(
-                                  fit: BoxFit.contain,
-                                  child: secondTexture,
-                                ),
+                                child: FittedBox(fit: BoxFit.contain, child: secondTexture),
                               )
                             : const Expanded(child: Placeholder()),
                         Text(
                           "Internal Handle: ${info.handle} Size: ${info.width} x ${info.height}",
-                        )
+                        ),
                       ],
                     );
                   },
