@@ -16,15 +16,10 @@ Frame::Frame(flutter::TextureRegistrar* texture_registrar)
 const FlutterDesktopPixelBuffer* Frame::CopyPixelBuffer(size_t requested_width, size_t requested_height) {
     const std::scoped_lock<std::mutex> lock(m_mutex);
 
-    if (m_currentSlot == nullptr) {
-        std::cout << "No current slot available for CopyPixelBuffer." << std::endl;
+    if (m_currentSlot == nullptr)
         return nullptr;
-    }
-
-    if (m_currentSlot->data.get() == nullptr) {
-        std::cout << "Current slot has no data allocated." << std::endl;
+    if (m_currentSlot->data.get() == nullptr)
         return nullptr;
-    }
 
     auto* slot                                   = m_currentSlot;
     m_flutterPixelBufferTexture.buffer           = slot->data.get();
